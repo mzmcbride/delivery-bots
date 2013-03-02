@@ -159,7 +159,7 @@ status = check_status(home_wiki, status_page)
 
 log = codecs.open('/home/mzmcbride/scripts/deliverybot/deliverybot-3-log.txt', 'a', 'utf-8')
 
-if status == 'start':
+if status in ('start', 'run', 'really start', 'restart'):
     home_wiki.login(config.username, config.password)
     top_user = top_user(home_wiki, spam)
     trusted_users = trusted_users(home_wiki, access_list)
