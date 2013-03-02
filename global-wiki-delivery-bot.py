@@ -176,7 +176,7 @@ if status == 'start':
     log.write('status is fine, let\'s edit\n')
     if top_user in trusted_users:
         log.write('auth is fine, let\'s edit\n')
-        if current_key not in old_keys or status == 'really start':
+        if current_key not in old_keys or status in ('really start', 'restart'):
             log.write('key is fine, let\'s edit\n')
             if len(subject_line) > 245:
                 log.write('subject line is too large, edit status page indicating so and die\n')
