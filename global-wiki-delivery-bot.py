@@ -138,11 +138,15 @@ def parse_input_page(home_wiki, input_page):
             input_target_site = target_template_user_re.search(line).group(2).strip()
             if input_target_site in valid_sites:
                 targets_list.append([input_target_site, 'User talk:' + input_target_user])
+            else:
+                log.write('Odd input site: %s\n' % (input_target_site.decode('utf-8')))
         elif target_template_page_re.search(line):
             input_target_user = target_template_page_re.search(line).group(1).strip()
             input_target_site = target_template_page_re.search(line).group(2).strip()
             if input_target_site in valid_sites:
                 targets_list.append([input_target_site, input_target_user])
+            else:
+                log.write('Odd input site: %s\n' % (input_target_site.decode('utf-8')))
     targets_list = sorted(targets_list)
     return targets_list
 
