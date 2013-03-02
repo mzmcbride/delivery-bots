@@ -9,15 +9,15 @@ import wikitools
 import config
 
 # Define variables
+directory = config.directory
 username = config.username
 base_page = config.base_page
 access_list = base_page + '/' + config.access_list
-log = base_page + '/' + config.log
 status_page = base_page + '/' + config.status
 spam = base_page + '/' + config.spam
 
 # Create a home wiki (Meta-Wiki) object
-home_wiki = wikitools.Wiki('http://meta.wikimedia.org/w/api.php'); home_wiki.setMaxlag(-1)
+home_wiki = wikitools.Wiki('https://meta.wikimedia.org/w/api.php'); home_wiki.setMaxlag(-1)
 
 # Functions to do various tasks
 def kill_self():
@@ -45,7 +45,6 @@ def top_user(home_wiki, page):
 
 def trusted_users(home_wiki, page):
     trusted_users = []
-
     params = {'action'      : 'query',
               'prop'        : 'links',
               'titles'      : page,
@@ -67,20 +66,19 @@ def retrieve_config(page):
 # SUBJECT(.+)
 # BODY(.+)
 </source>''', spam_page_text, re.I|re.U|re.M|re.DOTALL)
-    return { 'key': spam_page_text_parts.group(1),
-             'recip_page': spam_page_text_parts.group(2),
-             'subject': spam_page_text_parts.group(3),
-             'body': spam_page_text_parts.group(4),
-             }
+    return {'key': spam_page_text_parts.group(1),
+            'recip_page': spam_page_text_parts.group(2),
+            'subject': spam_page_text_parts.group(3),
+            'body': spam_page_text_parts.group(4)}
 
 def read_keys():
-    f = open('/home/mzmcbride/scripts/deliverybot/deliverybot-3-keys.txt', 'r')
+    f = open(directory+'deliverybot-3-keys.txt', 'r')
     keys = f.read().strip('\n').split('\n')
     f.close()
     return list(keys)
 
 def add_key(key):
-    f = open('/home/mzmcbride/scripts/deliverybot/deliverybot-3-keys.txt', 'a')
+    f = open(directory+'deliverybot-3-keys.txt', 'a')
     f.write('%s\n' % key)
     f.close()
     return
@@ -130,6 +128,7 @@ def parse_input_page(home_wiki, input_page):
     target_template_user_re = re.compile(r'\{\{\s*target\s*\|\s*user\s*=\s*(.+)\s*\|\s*site\s*=\s*(.+)\s*\}\}')
     target_template_page_re = re.compile(r'\{\{\s*target\s*\|\s*page\s*=\s*(.+)\s*\|\s*site\s*=\s*(.+)\s*\}\}')
 
+    valid_sites = get_valid_sites(home_wiki)
     targets_list = []
     targets_obj = wikitools.Page(home_wiki, input_page, followRedir=False)
     targets_page_text = targets_obj.getWikiText()
@@ -137,12 +136,12 @@ def parse_input_page(home_wiki, input_page):
         if target_template_user_re.search(line):
             input_target_user = target_template_user_re.search(line).group(1).strip()
             input_target_site = target_template_user_re.search(line).group(2).strip()
-            if re.search(r'[A-Za-z.\-]', input_target_site):
+            if input_target_site in valid_sites:
                 targets_list.append([input_target_site, 'User talk:' + input_target_user])
         elif target_template_page_re.search(line):
             input_target_user = target_template_page_re.search(line).group(1).strip()
             input_target_site = target_template_page_re.search(line).group(2).strip()
-            if re.search(r'[A-Za-z.]', input_target_site):
+            if input_target_site in valid_sites:
                 targets_list.append([input_target_site, input_target_user])
     targets_list = sorted(targets_list)
     return targets_list
@@ -155,9 +154,26 @@ def expand_wikitext(wiki, wikitext):
     expanded_wikitext = response[u'expandtemplates']['*']
     return expanded_wikitext.encode('utf-8')
 
+def get_valid_sites(home_wiki):
+    valid_sites = set()
+    params = {'action' : 'sitematrix',
+              'smsiteprop' : 'url'}
+    req = wikitools.api.APIRequest(home_wiki, params)
+    response = req.query()
+    for grouping in response[u'sitematrix'].values():
+        if type(grouping) is dict:
+            for site in grouping[u'site']:
+                domain = site[u'url'].split('//', 1)[1]
+                valid_sites.add(domain.encode('utf-8'))
+        elif type(grouping) is list:
+            for site in grouping:
+                domain = site[u'url'].split('//', 1)[1]
+                valid_sites.add(domain.encode('utf-8'))
+    return valid_sites
+
 status = check_status(home_wiki, status_page)
 
-log = codecs.open('/home/mzmcbride/scripts/deliverybot/deliverybot-3-log.txt', 'a', 'utf-8')
+log = codecs.open(directory+'deliverybot-3-log.txt', 'a', 'utf-8')
 
 if status in ('start', 'run', 'really start', 'restart'):
     home_wiki.login(config.username, config.password)
@@ -194,7 +210,7 @@ if status in ('start', 'run', 'really start', 'restart'):
                     if target_input_site not in target_sites:
                         target_sites.append(target_input_site)
                         log.write('target input site: ' + target_input_site + '\n')
-                        target_site = wikitools.Wiki('http://%s/w/api.php' % target_input_site); target_site.setMaxlag(-1)
+                        target_site = wikitools.Wiki('https://%s/w/api.php' % target_input_site); target_site.setMaxlag(-1)
                         target_site.login(config.username, config.password)
                         log.write('logged in to: %s\n' % target_input_site)
                     if target_input_page.find('{') != -1:
